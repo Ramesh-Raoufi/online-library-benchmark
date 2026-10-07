@@ -1,0 +1,70 @@
+name: Library checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npm test
+  databases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Configure disposable databases
+        run: cp .env.example .env
+      - name: Start database services
+        run: docker compose up -d --wait mysql cockroach
+      - name: Initialize CockroachDB databases
+        run: docker compose run --rm cockroach-init
+      - name: Test both actual engines
+        env:
+          TEST_MYSQL_URL: mysql://library:local-library-password@127.0.0.1:3306/library_test
+          TEST_COCKROACH_URL: postgresql://root@127.0.0.1:26257/library_test?sslmode=disable
+        run: npm run test:databases
+      - name: Validate measured experiment
+        env:
+          BENCH_ROWS: 100
+          BENCH_OPERATIONS: 10
+          BENCH_CONCURRENCY: 2
+          BENCH_REPETITIONS: 1
+          BENCH_WARMUP: 2
+        run: npm run benchmark
+      - name: Validate normalized Chapter 3 pilot
+        env:
+          STUDY_SCALE: 0.001
+          STUDY_OPERATIONS: 100
+          STUDY_WARMUP: 10
+          STUDY_REPETITIONS: 1
+          STUDY_CONCURRENCY: 2
+        run: npm run study
+      - name: Preserve experiment output
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-experiment
+          path: |
+            results/benchmark-*
+            results/study-*
+      - name: Database logs on failure
+        if: failure()
+        run: docker compose logs --tail 100
+      - name: Stop databases
+        if: always()
+        run: docker compose down -v

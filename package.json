@@ -1,0 +1,21 @@
+{
+  "name": "online-library-benchmark",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Online library management and reproducible MySQL/CockroachDB performance experiments",
+  "engines": {"node": ">=24"},
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "setup": "node --env-file-if-exists=.env scripts/setup.js",
+    "seed": "node --env-file-if-exists=.env scripts/seed.js",
+    "benchmark": "node --env-file-if-exists=.env scripts/benchmark.js",
+    "study": "node --env-file-if-exists=.env scripts/study.js",
+    "resources": "node --env-file-if-exists=.env scripts/resources.js",
+    "test": "node --test test/*.test.js",
+    "test:databases": "node --env-file-if-exists=.env --test test/databases.test.js",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": {"mysql2": "^3.15.0", "pg": "^8.16.3"}
+}

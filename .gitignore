@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+!.env.example
+data/
+results/*.json
+results/*.csv
+results/.benchmark.lock
+results/*.tmp
+results/*.ndjson
+results/*.jsonl
+!results/.gitkeep
+coverage/
+*.log
+playwright-report/

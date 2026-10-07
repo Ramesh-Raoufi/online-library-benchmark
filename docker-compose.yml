@@ -1,0 +1,46 @@
+name: library-lab
+services:
+  mysql:
+    image: mysql:8.4.3
+    environment:
+      MYSQL_DATABASE: library
+      MYSQL_USER: library
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/mysql-init.sql:/docker-entrypoint-initdb.d/01-library.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\""]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    mem_limit: 2g
+    cpus: 2
+  cockroach:
+    image: cockroachdb/cockroach:v24.3.0
+    command: start-single-node --insecure --listen-addr=0.0.0.0:26257 --http-addr=0.0.0.0:8080 --cache=256MiB --max-sql-memory=256MiB
+    ports:
+      - "127.0.0.1:26257:26257"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - cockroach_data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "cockroach", "sql", "--insecure", "--host=localhost:26257", "--execute=SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    mem_limit: 2g
+    cpus: 2
+  cockroach-init:
+    image: cockroachdb/cockroach:v24.3.0
+    depends_on:
+      cockroach:
+        condition: service_healthy
+    entrypoint: ["/cockroach/cockroach", "sql", "--insecure", "--host=cockroach:26257", "--execute=CREATE DATABASE IF NOT EXISTS library; CREATE DATABASE IF NOT EXISTS library_benchmark; CREATE DATABASE IF NOT EXISTS library_test;"]
+    restart: "no"
+volumes:
+  mysql_data:
+  cockroach_data:
