@@ -26,6 +26,7 @@ function summarizeLatencies(good,total,elapsedMs,retries){
 export async function measure(operation, count, concurrency, {durationSeconds=0,keepSamples=true,onSample}={}) {
   let next = 0, retries = 0;
   const samples = [],latencies=[];
+  const startedAt = new Date().toISOString();
   const started = performance.now();
   const deadline=started+durationSeconds*1000;
   await Promise.all(Array.from({length:concurrency},async () => {
@@ -40,7 +41,7 @@ export async function measure(operation, count, concurrency, {durationSeconds=0,
   }));
   const elapsed=performance.now()-started;
   latencies.sort((a,b)=>a-b);
-  return { ...summarizeLatencies(latencies,next,elapsed,retries), samples:samples.sort((a,b)=>a.index-b.index) };
+  return { ...summarizeLatencies(latencies,next,elapsed,retries), started_at:startedAt, completed_at:new Date().toISOString(), samples:samples.sort((a,b)=>a.index-b.index) };
 }
 async function schema(db) {
   await db.query('CREATE TABLE IF NOT EXISTS bench_books (id INTEGER PRIMARY KEY,title VARCHAR(120) NOT NULL,category VARCHAR(40) NOT NULL,available INTEGER NOT NULL CHECK(available>=0),revision INTEGER NOT NULL)');

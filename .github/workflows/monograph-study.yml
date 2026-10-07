@@ -1,0 +1,69 @@
+name: Monograph measured study
+on:
+  push:
+    branches: [research/measured-study-20261007]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  measured-study:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check && npm test
+      - name: Start equivalent single-node databases
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml -f docker-compose.research.yml up -d --wait mysql cockroach
+          docker compose run --rm cockroach-init
+      - name: Save environment and configuration
+        run: |
+          mkdir -p results
+          uname -a > results/environment.txt
+          lscpu >> results/environment.txt
+          free -b >> results/environment.txt
+          df -T >> results/environment.txt
+          docker info >> results/environment.txt
+          docker compose ps > results/containers.txt
+          docker inspect $(docker compose ps -q mysql cockroach) > results/container-config.json
+          docker compose exec -T mysql mysql -ulibrary -plocal-library-password --execute="SHOW VARIABLES WHERE Variable_name IN ('innodb_buffer_pool_size','innodb_flush_log_at_trx_commit','sync_binlog','transaction_isolation','max_connections');" > results/mysql-settings.txt
+      - name: Measure public demo HTTP separately
+        run: python3 scripts/http-study.py
+      - name: Run real normalized library comparison
+        env:
+          STUDY_SCALE: 0.1
+          STUDY_OPERATIONS: 10000
+          STUDY_WARMUP: 1000
+          STUDY_REPETITIONS: 5
+          STUDY_CONCURRENCY: 1,10,25,50,100
+          POOL_SIZE: 100
+          RESOURCE_SECONDS: 3500
+          RESOURCE_INTERVAL_SECONDS: 1
+        run: |
+          node --env-file=.env scripts/resources.js mysql cockroach > results/resources-collector.log 2>&1 &
+          collector=$!
+          trap 'kill "$collector" 2>/dev/null || true' EXIT
+          npm run study
+      - name: Save table and storage sizes
+        if: always()
+        run: |
+          docker compose exec -T mysql mysql -ulibrary -plocal-library-password --execute="SELECT table_name,table_rows,data_length,index_length FROM information_schema.tables WHERE table_schema='library_benchmark';" > results/mysql-storage.txt
+          docker compose exec -T cockroach cockroach sql --insecure --execute="SHOW TABLES FROM library_benchmark;" > results/cockroach-storage.txt
+          docker compose exec -T mysql du -sb /var/lib/mysql > results/mysql-datadir.txt
+          docker compose exec -T cockroach du -sb /cockroach/cockroach-data > results/cockroach-datadir.txt
+      - name: Preserve raw data and provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monograph-measured-study
+          retention-days: 90
+          path: results/
+      - name: Stop disposable services
+        if: always()
+        run: docker compose down -v
