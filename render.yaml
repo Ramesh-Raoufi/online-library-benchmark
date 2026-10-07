@@ -1,0 +1,26 @@
+# Disposable preview. Free Render filesystems do not provide durable SQLite storage.
+services:
+  - type: web
+    name: online-library-benchmark
+    runtime: node
+    plan: free
+    healthCheckPath: /api/health
+    buildCommand: npm ci --ignore-scripts
+    startCommand: APP_ORIGIN="$RENDER_EXTERNAL_URL" npm run start:demo
+    envVars:
+      - key: NODE_VERSION
+        value: "24.21.0"
+      - key: DB_ENGINE
+        value: sqlite
+      - key: SQLITE_PATH
+        value: ./data/library.sqlite
+      - key: HOST
+        value: 0.0.0.0
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: ADMIN_NAME
+        value: Ramesh Raoufi
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
