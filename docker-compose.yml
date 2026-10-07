@@ -21,6 +21,7 @@ services:
     cpus: 2
   cockroach:
     image: cockroachdb/cockroach:v24.3.0
+    entrypoint: ["/cockroach/cockroach"]
     command: start-single-node --insecure --listen-addr=0.0.0.0:26257 --http-addr=0.0.0.0:8080 --cache=256MiB --max-sql-memory=256MiB
     ports:
       - "127.0.0.1:26257:26257"
