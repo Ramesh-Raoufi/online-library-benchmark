@@ -97,6 +97,7 @@ export async function runStudy(){
           }finally{if(!stream.closed)stream.destroy();}
         }else measurement=await measure(mixedOperation(db,counts,baseline.active),operations,workers);
         result.measurements.push({engine:db.engine,workload:'normalized_library_mix',repetition,concurrency:workers,...measurement});
+        await writeFile(resolve(output,`checkpoint-${result.id}.json`),JSON.stringify({...result,status:'partial'},null,2));
       }
       if(checks.mysql!==checks.cockroach)throw new Error('Normalized study baselines do not match');
       result.baseline_checks.push({repetition,concurrency:workers,checksum:checks.mysql});

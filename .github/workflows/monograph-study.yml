@@ -1,14 +1,14 @@
-name: Monograph measured study
+name: Monograph validation study
 on:
   push:
-    branches: [research/measured-study-20261007]
+    branches: [research/validation-study-20261007]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   measured-study:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,13 +37,13 @@ jobs:
         run: python3 scripts/http-study.py
       - name: Run real normalized library comparison
         env:
-          STUDY_SCALE: 0.1
-          STUDY_OPERATIONS: 10000
-          STUDY_WARMUP: 1000
+          STUDY_SCALE: 0.01
+          STUDY_OPERATIONS: 1000
+          STUDY_WARMUP: 100
           STUDY_REPETITIONS: 5
           STUDY_CONCURRENCY: 1,10,25,50,100
           POOL_SIZE: 100
-          RESOURCE_SECONDS: 3500
+          RESOURCE_SECONDS: 1100
           RESOURCE_INTERVAL_SECONDS: 1
         run: |
           node --env-file=.env scripts/resources.js mysql cockroach > results/resources-collector.log 2>&1 &
@@ -61,7 +61,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: monograph-measured-study
+          name: monograph-validation-study
           retention-days: 90
           path: results/
       - name: Stop disposable services
